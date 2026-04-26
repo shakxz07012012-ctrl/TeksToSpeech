@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teks To Speech</title>
+    <style>
+        :root {
+            --primary: #00f2ff; /* Cyan Neon */
+            --primary-glow: rgba(0, 242, 255, 0.3);
+            --bg: #080808;
+            --card: #111111;
+            --text: #ffffff;
+            --border: rgba(255, 255, 255, 0.05);
+            --input-bg: #161616;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .premium-card {
+            width: 90%;
+            max-width: 420px;
+            background: var(--card);
+            padding: 35px;
+            border-radius: 25px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.6);
+            border: 1px solid var(--border);
+            position: relative;
+            backdrop-filter: blur(10px);
+        }
+
+        .premium-card::before {
+            content: '';
+            position: absolute;
+            top: -1px; left: -1px; right: -1px; bottom: -1px;
+            background: linear-gradient(135deg, var(--primary), transparent, var(--primary));
+            border-radius: 26px;
+            z-index: -1;
+            opacity: 0.15;
+        }
+
+        h1 {
+            font-size: 22px;
+            font-weight: 800;
+            text-align: center;
+            margin: 0 0 10px 0;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            background: linear-gradient(to right, #fff, var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 10px;
+            color: #555;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 25px;
+        }
+
+        /* LIVE VISUALIZER */
+        .visualizer-container {
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            margin-bottom: 25px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        .bar {
+            width: 4px;
+            height: 6px;
+            background: var(--primary);
+            border-radius: 2px;
+            transition: 0.1s ease-out;
+            box-shadow: 0 0 5px var(--primary-glow);
+        }
+
+        .input-group { margin-bottom: 20px; }
+
+        label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #888;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 110px;
+            background: var(--input-bg);
+            border: 1px solid rgba(255,255,255,0.03);
+            border-radius: 12px;
+            color: #fff;
+            padding: 15px;
+            box-sizing: border-box;
+            resize: none;
+            font-size: 15px;
+            outline: none;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px;
+            background: var(--input-bg);
+            border: 1px solid rgba(255,255,255,0.03);
+            color: #fff;
+            border-radius: 10px;
+            cursor: pointer;
+            appearance: none;
+            font-size: 13px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+
+        .btn-premium {
+            width: 100%;
+            padding: 18px;
+            background: var(--primary);
+            border: none;
+            border-radius: 12px;
+            color: #000;
+            font-weight: 800;
+            font-size: 15px;
+            cursor: pointer;
+            transition: 0.3s;
+            text-transform: uppercase;
+            box-shadow: 0 5px 15px rgba(0, 242, 255, 0.2);
+        }
+
+        .btn-premium:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 242, 255, 0.3);
+            background: #fff;
+        }
+
+        .status-bar {
+            margin-top: 20px;
+            font-size: 9px;
+            text-align: center;
+            color: #333;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+
+<div class="premium-card">
+    <h1>Teks To Speech | ibill</h1>
+    <div class="subtitle">Neural Voice Suite</div>
+
+    <div class="visualizer-container" id="visualizer"></div>
+    
+    <div class="input-group">
+        <textarea id="msg" placeholder="Masukkan teks..."></textarea>
+    </div>
+
+    <div class="input-group">
+        <label>Voice Core</label>
+        <select id="vList"></select>
+    </div>
+
+    <div class="input-group">
+        <label>Deep Bass (Pitch)</label>
+        <input type="range" id="pitch" min="0" max="2" value="0.8" step="0.1">
+    </div>
+
+    <button class="btn-premium" onclick="executeVox()">Generate Audio</button>
+    
+    <div class="status-bar" id="status">Secure Connection Active</div>
+</div>
+
+<script>
+    const synth = window.speechSynthesis;
+    const vList = document.getElementById('vList');
+    const visualizer = document.getElementById('visualizer');
+    const bars = [];
+    let voices = [];
+    let animationId;
+
+    for(let i=0; i<18; i++){
+        const bar = document.createElement('div');
+        bar.className = 'bar';
+        visualizer.appendChild(bar);
+        bars.push(bar);
+    }
+
+    function animateBars(speaking) {
+        bars.forEach(bar => {
+            if(speaking) {
+                const h = Math.random() * 30 + 5;
+                bar.style.height = h + 'px';
+                bar.style.opacity = '1';
+            } else {
+                bar.style.height = '6px';
+                bar.style.opacity = '0.5';
+            }
+        });
+        if(speaking) {
+            animationId = requestAnimationFrame(() => animateBars(true));
+        } else {
+            cancelAnimationFrame(animationId);
+        }
+    }
+
+    function populateVoices() {
+        voices = synth.getVoices();
+        vList.innerHTML = '';
+        voices.forEach((v) => {
+            const opt = document.createElement('option');
+            let isMale = v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('pria');
+            opt.textContent = `${isMale ? '♂️' : '♀️'} ${v.name}`;
+            opt.setAttribute('data-name', v.name);
+            vList.appendChild(opt);
+        });
+        const indonesian = voices.findIndex(v => v.lang.includes('id'));
+        if(indonesian !== -1) vList.selectedIndex = indonesian;
+    }
+
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = populateVoices;
+    }
+    populateVoices();
+    setTimeout(populateVoices, 500);
+
+    function executeVox() {
+        if (synth.speaking) synth.cancel();
+        const txt = document.getElementById('msg').value;
+        if (!txt) return;
+
+        const ut = new SpeechSynthesisUtterance(txt);
+        const selName = vList.selectedOptions[0].getAttribute('data-name');
+
+        voices.forEach((v) => {
+            if (v.name === selName) ut.voice = v;
+        });
+
+        ut.pitch = document.getElementById('pitch').value;
+        ut.rate = 1;
+
+        ut.onstart = () => {
+            animateBars(true);
+            document.getElementById('status').innerText = "Speaking...";
+        };
+        ut.onend = () => {
+            animateBars(false);
+            document.getElementById('status').innerText = "Secure Connection Active";
+        };
+
+        synth.speak(ut);
+    }
+</script>
+
+</body>
+</html>
